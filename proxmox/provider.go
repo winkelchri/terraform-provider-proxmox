@@ -3,6 +3,7 @@ package proxmox
 import (
 	"crypto/tls"
 	"fmt"
+	"log"
 	"regexp"
 	"strconv"
 	"sync"
@@ -22,6 +23,7 @@ type providerConfiguration struct {
 
 // Provider - Terrafrom properties for proxmox
 func Provider() *schema.Provider {
+	log.Print("[INFO] Provider()")
 	return &schema.Provider{
 
 		Schema: map[string]*schema.Schema{
@@ -68,7 +70,13 @@ func Provider() *schema.Provider {
 }
 
 func providerConfigure(d *schema.ResourceData) (interface{}, error) {
-	client, err := getClient(d.Get("pm_api_url").(string), d.Get("pm_user").(string), d.Get("pm_password").(string), d.Get("pm_tls_insecure").(bool))
+	log.Print("[INFO] providerConfigure()")
+	client, err := getClient(
+		d.Get("pm_api_url").(string),
+		d.Get("pm_user").(string),
+		d.Get("pm_password").(string),
+		d.Get("pm_tls_insecure").(bool),
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -84,6 +92,7 @@ func providerConfigure(d *schema.ResourceData) (interface{}, error) {
 }
 
 func getClient(pm_api_url string, pm_user string, pm_password string, pm_tls_insecure bool) (*pxapi.Client, error) {
+	log.Print("[INFO] getClient()")
 	tlsconf := &tls.Config{InsecureSkipVerify: true}
 	if !pm_tls_insecure {
 		tlsconf = nil
@@ -97,6 +106,7 @@ func getClient(pm_api_url string, pm_user string, pm_password string, pm_tls_ins
 }
 
 func nextVmId(pconf *providerConfiguration) (nextId int, err error) {
+	log.Print("[INFO] nextVmId()")
 	pconf.Mutex.Lock()
 	pconf.MaxVMID, err = pconf.Client.GetNextID(pconf.MaxVMID + 1)
 	if err != nil {
@@ -108,6 +118,7 @@ func nextVmId(pconf *providerConfiguration) (nextId int, err error) {
 }
 
 func pmParallelBegin(pconf *providerConfiguration) {
+	log.Print("[INFO] pmParallelBegin()")
 	pconf.Mutex.Lock()
 	for pconf.CurrentParallel >= pconf.MaxParallel {
 		pconf.Cond.Wait()
@@ -117,6 +128,7 @@ func pmParallelBegin(pconf *providerConfiguration) {
 }
 
 func pmParallelEnd(pconf *providerConfiguration) {
+	log.Print("[INFO] pmParallelEnd()")
 	pconf.Mutex.Lock()
 	pconf.CurrentParallel--
 	pconf.Cond.Signal()
@@ -124,12 +136,14 @@ func pmParallelEnd(pconf *providerConfiguration) {
 }
 
 func resourceId(targetNode string, resType string, vmId int) string {
+	log.Print("[INFO] resourceId()")
 	return fmt.Sprintf("%s/%s/%d", targetNode, resType, vmId)
 }
 
 var rxRsId = regexp.MustCompile("([^/]+)/([^/]+)/(\\d+)")
 
 func parseResourceId(resId string) (targetNode string, resType string, vmId int, err error) {
+	log.Print("[INFO] parseResourceId()")
 	idMatch := rxRsId.FindStringSubmatch(resId)
 	if idMatch == nil {
 		err = fmt.Errorf("Invalid resource id: %s", resId)

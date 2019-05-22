@@ -84,14 +84,17 @@ echo Preprovision done at $(date)
 `
 
 func preProvisionCentos(d *schema.ResourceData) error {
+	log.Print("[INFO] preProvisionCentos()")
 	return preProvisionLinux(d, centosPreprovisionScript)
 }
 
 func preProvisionUbuntu(d *schema.ResourceData) error {
+	log.Print("[INFO] preProvisionUbuntu()")
 	return preProvisionLinux(d, ubuntuPreprovisionScript)
 }
 
 func preProvisionLinux(d *schema.ResourceData, provisionBash string) error {
+	log.Print("[INFO] preProvisionLinux()")
 
 	// Get a new communicator
 	log.Print("[DEBUG] connecting to SSH on linux")
@@ -139,9 +142,8 @@ func preProvisionLinux(d *schema.ResourceData, provisionBash string) error {
 }
 
 // runCommand is used to run already prepared commands
-func runCommand(
-	comm communicator.Communicator,
-	command string) error {
+func runCommand(comm communicator.Communicator, command string) error {
+	log.Print("[INFO] runCommand()")
 
 	_, outW := io.Pipe()
 	_, errW := io.Pipe()

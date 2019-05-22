@@ -3,6 +3,7 @@ package proxmox
 import (
 	"context"
 	"fmt"
+	"log"
 	"time"
 
 	pxapi "github.com/Telmate/proxmox-api-go/proxmox"
@@ -12,6 +13,7 @@ import (
 
 // Provisioner - Terrafrom properties for proxmox-provisioner
 func Provisioner() terraform.ResourceProvisioner {
+	log.Print("[INFO] Provisioner()")
 	return &schema.Provisioner{
 		Schema: map[string]*schema.Schema{
 			"action": &schema.Schema{
@@ -31,6 +33,7 @@ func Provisioner() terraform.ResourceProvisioner {
 var currentClient *pxapi.Client
 
 func applyFn(ctx context.Context) error {
+	log.Print("[INFO] applyFn()")
 	data := ctx.Value(schema.ProvConfigDataKey).(*schema.ResourceData)
 	state := ctx.Value(schema.ProvRawStateKey).(*terraform.InstanceState)
 

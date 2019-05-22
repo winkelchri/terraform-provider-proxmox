@@ -15,8 +15,9 @@ import (
 )
 
 func resourceVmQemu() *schema.Resource {
+	log.Print("[INFO] resourceVmQemu()")
 	*pxapi.Debug = true
-	return &schema.Resource{
+	output := &schema.Resource{
 		Create: resourceVmQemuCreate,
 		Read:   resourceVmQemuRead,
 		Update: resourceVmQemuUpdate,
@@ -335,11 +336,15 @@ func resourceVmQemu() *schema.Resource {
 			},
 		},
 	}
+	log.Printf("[debug] resourceVmQemu output: %s", output)
+	return output
 }
 
 var rxIPconfig = regexp.MustCompile("ip6?=([0-9a-fA-F:\\.]+)")
 
 func resourceVmQemuCreate(d *schema.ResourceData, meta interface{}) error {
+	log.Print("[INFO] resourceVmQemuCreate()")
+
 	pconf := meta.(*providerConfiguration)
 	pmParallelBegin(pconf)
 	client := pconf.Client
@@ -480,6 +485,7 @@ func resourceVmQemuCreate(d *schema.ResourceData, meta interface{}) error {
 }
 
 func resourceVmQemuUpdate(d *schema.ResourceData, meta interface{}) error {
+	log.Print("[INFO] resourceVmQemuUpdate()")
 	pconf := meta.(*providerConfiguration)
 	pmParallelBegin(pconf)
 	client := pconf.Client
@@ -499,6 +505,10 @@ func resourceVmQemuUpdate(d *schema.ResourceData, meta interface{}) error {
 	configNetworksSet := d.Get("network").(*schema.Set)
 	qemuNetworks := devicesSetToMap(configNetworksSet)
 
+	log.Printf("[DEBUG] resourceVmQemuUpdate ResourceData: %s", d)
+	log.Printf("[DEBUG] resourceVmQemuUpdate.configNetworksSet: %s", configNetworksSet)
+	log.Printf("[DEBUG] resourceVmQemuUpdate.qemuNetworks: %s", qemuNetworks)
+
 	config := pxapi.ConfigQemu{
 		Name:         d.Get("name").(string),
 		Description:  d.Get("desc").(string),
@@ -509,6 +519,7 @@ func resourceVmQemuUpdate(d *schema.ResourceData, meta interface{}) error {
 		QemuOs:       d.Get("qemu_os").(string),
 		QemuNetworks: qemuNetworks,
 		QemuDisks:    qemuDisks,
+
 		// Cloud-init.
 		CIuser:       d.Get("ciuser").(string),
 		CIpassword:   d.Get("cipassword").(string),
@@ -517,9 +528,11 @@ func resourceVmQemuUpdate(d *schema.ResourceData, meta interface{}) error {
 		Sshkeys:      d.Get("sshkeys").(string),
 		Ipconfig0:    d.Get("ipconfig0").(string),
 		Ipconfig1:    d.Get("ipconfig1").(string),
+
 		// Deprecated single disk config.
 		Storage:  d.Get("storage").(string),
 		DiskSize: d.Get("disk_gb").(float64),
+
 		// Deprecated single nic config.
 		QemuNicModel: d.Get("nic").(string),
 		QemuBrige:    d.Get("bridge").(string),
@@ -565,6 +578,9 @@ func resourceVmQemuUpdate(d *schema.ResourceData, meta interface{}) error {
 }
 
 func resourceVmQemuRead(d *schema.ResourceData, meta interface{}) error {
+	log.Print("[INFO] resourceVmQemuRead()")
+
+	log.Printf("[DEBUG] resourceVmQemuRead resourceData: %s", d)
 	pconf := meta.(*providerConfiguration)
 	pmParallelBegin(pconf)
 	client := pconf.Client
@@ -584,6 +600,8 @@ func resourceVmQemuRead(d *schema.ResourceData, meta interface{}) error {
 		pmParallelEnd(pconf)
 		return err
 	}
+
+	log.Printf("[DEBUG] resourceVmQemuRead vm reference: %s", vmr)
 	d.SetId(resourceId(vmr.Node(), "qemu", vmr.VmId()))
 	d.Set("target_node", vmr.Node())
 	d.Set("name", config.Name)
@@ -593,6 +611,7 @@ func resourceVmQemuRead(d *schema.ResourceData, meta interface{}) error {
 	d.Set("cores", config.QemuCores)
 	d.Set("sockets", config.QemuSockets)
 	d.Set("qemu_os", config.QemuOs)
+
 	// Cloud-init.
 	d.Set("ciuser", config.CIuser)
 	d.Set("cipassword", config.CIpassword)
@@ -601,13 +620,19 @@ func resourceVmQemuRead(d *schema.ResourceData, meta interface{}) error {
 	d.Set("sshkeys", config.Sshkeys)
 	d.Set("ipconfig0", config.Ipconfig0)
 	d.Set("ipconfig1", config.Ipconfig1)
+
 	// Disks.
 	configDisksSet := d.Get("disk").(*schema.Set)
 	activeDisksSet := updateDevicesSet(configDisksSet, config.QemuDisks)
 	d.Set("disk", activeDisksSet)
+
 	// Networks.
 	configNetworksSet := d.Get("network").(*schema.Set)
+	log.Printf("[DEBUG] resourceVmQemuRead configNetworksSet: %s", configNetworksSet)
+
 	activeNetworksSet := updateDevicesSet(configNetworksSet, config.QemuNetworks)
+	log.Printf("[DEBUG] resourceVmQemuRead activeNetworksSet: %s", activeNetworksSet)
+
 	d.Set("network", activeNetworksSet)
 	// Deprecated single disk config.
 	d.Set("storage", config.Storage)
@@ -620,13 +645,20 @@ func resourceVmQemuRead(d *schema.ResourceData, meta interface{}) error {
 	d.Set("mac", config.QemuMacAddr)
 
 	pmParallelEnd(pconf)
+
+	log.Printf("[DEBUG] resourceVmQemuRead final resourceData: %s", d)
+	log.Printf("[DEBUG] resourceVmQemuRead network data: %s", d.Get("network").(*schema.Set))
 	return nil
 }
 
 func resourceVmQemuImport(d *schema.ResourceData, meta interface{}) ([]*schema.ResourceData, error) {
 	// TODO: research proper import
+	log.Print("[INFO] resourceVmQemuImport()")
 	err := resourceVmQemuRead(d, meta)
-	return []*schema.ResourceData{d}, err
+	output, err := []*schema.ResourceData{d}, err
+
+	log.Printf("[DEBUG] resourceVmQemuImport output: %s", output)
+	return output, err
 }
 
 func resourceVmQemuDelete(d *schema.ResourceData, meta interface{}) error {
@@ -721,8 +753,13 @@ func updateDevicesSet(
 	devicesMap pxapi.QemuDevices,
 ) *schema.Set {
 
+	log.Print("[INFO] updateDevicesSet()")
+
 	configDevicesMap := devicesSetToMap(devicesSet)
 	activeDevicesMap := updateDevicesDefaults(devicesMap, configDevicesMap)
+
+	log.Printf("[DEBUG] updateDevicesSet.configDevicesMap: %s", configDevicesMap)
+	log.Printf("[DEBUG] updateDevicesSet.activeDevicesMap: %s", activeDevicesMap)
 
 	for _, setConf := range devicesSet.List() {
 		devicesSet.Remove(setConf)
@@ -755,7 +792,7 @@ func updateDevicesSet(
 			devicesSet.Add(setConfMap)
 		}
 	}
-
+	log.Printf("[DEBUG] updateDevicesSet.devicesSet: %s", devicesSet)
 	return devicesSet
 }
 
